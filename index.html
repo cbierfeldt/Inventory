@@ -1,257 +1,121 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventory Tracking System</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Inventory Tracker</title>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <style>
-body{font-family:Segoe UI,Arial,sans-serif;background:#121212;color:#fff;padding:20px;margin:0}
-.container{max-width:1400px;margin:auto}
-.card{background:#1e1e1e;padding:20px;border-radius:12px;margin-bottom:20px}
-.header{display:flex;justify-content:space-between;align-items:center}
-.stats{display:flex;gap:15px;flex-wrap:wrap;margin:20px 0}
-.stat-box{flex:1;min-width:180px;background:#1e1e1e;padding:15px;border-radius:12px;text-align:center}
-.stat-number{font-size:28px;font-weight:bold;color:#4caf50}
-input{width:100%;padding:10px;background:#2b2b2b;color:#fff;border:1px solid #444;border-radius:8px}
-button{padding:10px 14px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
-.btn-primary{background:#0078d7;color:#fff}
-.btn-success{background:#28a745;color:#fff}
-.btn-warning{background:#f39c12;color:#fff}
-.btn-danger{background:#dc3545;color:#fff}
-.btn-dark{background:#6c757d;color:#fff}
-.table-actions{display:flex;gap:5px;flex-wrap:wrap}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border:1px solid #444}
-th{background:#0078d7}
-.alert{background:#382f00;padding:15px;border-radius:10px;margin-bottom:20px}
-.light-mode{background:#f4f4f4;color:#000}
-.light-mode .card,.light-mode .stat-box{background:#fff}
-.light-mode input{background:#fff;color:#000}
-.low-stock{color:#ff6b6b;font-weight:bold}
-#reader{max-width:400px;margin-top:15px}
+body{font-family:Arial,sans-serif;background:#121212;color:#fff;margin:0;padding:20px}
+.hidden{display:none}.card{background:#1e1e1e;padding:15px;border-radius:10px;margin:10px 0}
+button{padding:10px;border:none;border-radius:6px;margin:2px;cursor:pointer}
+input{padding:10px;width:100%;box-sizing:border-box;margin:4px 0}
+.nav button{background:#0078d7;color:#fff}
+table{width:100%;border-collapse:collapse}td,th{border:1px solid #444;padding:8px}th{background:#0078d7}
+.low{color:#ff6b6b;font-weight:bold}
 </style>
 </head>
 <body>
-<div class="container">
 
-<div class="header">
-<h1>📦 Inventory Tracking System</h1>
-<button class="btn-dark" onclick="toggleTheme()">🌙 Toggle Theme</button>
-</div>
-
-<div class="stats">
-<div class="stat-box"><div>Total Items</div><div class="stat-number" id="totalItems">0</div></div>
-<div class="stat-box"><div>Total Quantity</div><div class="stat-number" id="totalQuantity">0</div></div>
-<div class="stat-box"><div>Low Stock</div><div class="stat-number" id="lowStockCount">0</div></div>
+<div class='nav'>
+<button onclick="showPage('inventory')">Inventory</button>
+<button onclick="showPage('scanin')">Scan In</button>
+<button onclick="showPage('scanout')">Scan Out</button>
 </div>
 
-<div class="alert">
-<strong>⚠ Low Stock Alerts</strong>
-<ul id="alerts"></ul>
+<div id='inventory' class='page'>
+<div class='card'>
+<h2>Inventory</h2>
+<input id='name' placeholder='Item Name'>
+<input id='qty' type='number' placeholder='Quantity'>
+<input id='location' placeholder='Location'>
+<input id='barcode' placeholder='Barcode'>
+<button onclick='saveItem()'>Save Item</button>
 </div>
 
-<div class="card">
-<div class="form-grid">
-<input id="name" placeholder="Item Name">
-<input id="qty" type="number" min="0" placeholder="Quantity">
-<input id="location" placeholder="Location">
-<div>
-<input id="barcode" placeholder="Barcode / SKU">
-<button class="btn-success" type="button" onclick="startScanner()" style="margin-top:8px;">📷 Scan Barcode</button>
-</div>
-</div>
-<div id="reader"></div>
-<br>
-<button id="saveBtn" class="btn-primary" onclick="saveItem()">Add Item</button>
+<div class='card'>
+<input id='search' placeholder='Search' onkeyup='render()'>
 </div>
 
-<div class="card">
-<input id="search" placeholder="Search inventory..." onkeyup="render()">
-<br><br>
+<div class='card'>
+<h3>Low Stock Alerts</h3>
+<ul id='alerts'></ul>
+</div>
+
+<div class='card'>
 <table>
-<thead>
-<tr>
-<th>Item</th>
-<th>Quantity</th>
-<th>Location</th>
-<th>Barcode</th>
-<th>Status</th>
-<th>Actions</th>
-</tr>
-</thead>
-<tbody id="inventoryTable"></tbody>
+<thead><tr><th>Item</th><th>Qty</th><th>Location</th><th>Barcode</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id='inventoryTable'></tbody>
 </table>
 </div>
 
-<div class="card">
-<h2>📋 History</h2>
+<div class='card'>
+<h3>History</h3>
 <table>
-<thead>
-<tr>
-<th>Action</th>
-<th>Item</th>
-<th>Quantity</th>
-<th>Date/Time</th>
-</tr>
-</thead>
-<tbody id="historyTable"></tbody>
+<thead><tr><th>Action</th><th>Item</th><th>Qty</th><th>Date</th></tr></thead>
+<tbody id='historyTable'></tbody>
 </table>
 </div>
+</div>
 
+<div id='scanin' class='page hidden'>
+<div class='card'>
+<h2>Scan In</h2>
+<div id='readerIn'></div>
+<button onclick='startScanIn()'>Start Scan In</button>
+</div>
+</div>
+
+<div id='scanout' class='page hidden'>
+<div class='card'>
+<h2>Scan Out</h2>
+<div id='readerOut'></div>
+<button onclick='startScanOut()'>Start Scan Out</button>
+</div>
 </div>
 
 <script>
-let items = JSON.parse(localStorage.getItem('items')) || [];
-let history = JSON.parse(localStorage.getItem('history')) || [];
-let editId = null;
-let scannerRunning = false;
-let htmlScanner = null;
+let items=JSON.parse(localStorage.getItem('items'))||[];
+let history=JSON.parse(localStorage.getItem('history'))||[];
+let editId=null;
 
-function saveStorage(){
-localStorage.setItem('items',JSON.stringify(items));
-localStorage.setItem('history',JSON.stringify(history));
-}
+function saveStorage(){localStorage.setItem('items',JSON.stringify(items));localStorage.setItem('history',JSON.stringify(history));}
 
-function clearForm(){
-document.getElementById('name').value='';
-document.getElementById('qty').value='';
-document.getElementById('location').value='';
-document.getElementById('barcode').value='';
-editId=null;
-document.getElementById('saveBtn').innerText='Add Item';
-}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
 
 function saveItem(){
-const name=document.getElementById('name').value.trim();
-const quantity=Number(document.getElementById('qty').value);
-const location=document.getElementById('location').value.trim();
-const barcode=document.getElementById('barcode').value.trim();
+const item={id:editId||Date.now(),name:name.value.trim(),quantity:Number(qty.value),location:location.value.trim(),barcode:barcode.value.trim()};
+if(!item.name||isNaN(item.quantity)) return;
+if(editId){items=items.map(i=>i.id===editId?item:i);} else {items.push(item);} 
+saveStorage();clearForm();render();}
 
-if(name===''){alert('Enter an item name');return;}
-if(!Number.isFinite(quantity)||quantity<0){alert('Enter a valid quantity');return;}
+function clearForm(){name.value='';qty.value='';location.value='';barcode.value='';editId=null;}
 
-const item={id:editId||Date.now(),name,quantity,location,barcode};
+function editItem(id){const i=items.find(x=>x.id===id);name.value=i.name;qty.value=i.quantity;location.value=i.location;barcode.value=i.barcode;editId=id;}
 
-if(editId){
-items=items.map(i=>i.id===editId?item:i);
-}else{
-items.push(item);
-}
+function deleteItem(id){items=items.filter(i=>i.id!==id);saveStorage();render();}
 
-saveStorage();
-clearForm();
-render();
-}
+function addHistory(action,item){history.unshift({action,item:item.name,qty:item.quantity,date:new Date().toLocaleString()});saveStorage();}
 
-function editItem(id){
-const item=items.find(i=>i.id===id);
-document.getElementById('name').value=item.name;
-document.getElementById('qty').value=item.quantity;
-document.getElementById('location').value=item.location;
-document.getElementById('barcode').value=item.barcode;
-editId=id;
-document.getElementById('saveBtn').innerText='Update Item';
-}
+function scanInBarcode(code){const item=items.find(i=>i.barcode===code);if(!item){alert('Item not found');return;} item.quantity++;addHistory('Check-In',item);saveStorage();render();alert(item.name+' checked in');}
 
-function deleteItem(id){
-items=items.filter(i=>i.id!==id);
-saveStorage();
-render();
-}
+function scanOutBarcode(code){const item=items.find(i=>i.barcode===code);if(!item){alert('Item not found');return;} if(item.quantity<=0){alert('No stock');return;} item.quantity--;addHistory('Check-Out',item);saveStorage();render();alert(item.name+' checked out');}
 
-function addHistory(action,item){
-history.unshift({action,item:item.name,quantity:item.quantity,date:new Date().toLocaleString()});
-saveStorage();
-}
+function startScanIn(){const s=new Html5Qrcode('readerIn');s.start({facingMode:'environment'},{fps:10,qrbox:250},txt=>{s.stop();scanInBarcode(txt);},()=>{});}
 
-function checkIn(id){
-const item=items.find(i=>i.id===id);
-item.quantity++;
-addHistory('Check-In',item);
-saveStorage();
-render();
-}
-
-function checkOut(id){
-const item=items.find(i=>i.id===id);
-if(item.quantity>0){
-item.quantity--;
-addHistory('Check-Out',item);
-}
-saveStorage();
-render();
-}
-
-function toggleTheme(){
-document.body.classList.toggle('light-mode');
-}
-
-function startScanner(){
-if(scannerRunning) return;
-htmlScanner=new Html5Qrcode('reader');
-htmlScanner.start(
-{ facingMode:'environment' },
-{ fps:10, qrbox:250 },
-function(decodedText){
-document.getElementById('barcode').value=decodedText;
-htmlScanner.stop().then(()=>{
-document.getElementById('reader').innerHTML='';
-scannerRunning=false;
-});
-alert('Barcode Scanned: '+decodedText);
-},
-function(errorMessage){}
-);
-scannerRunning=true;
-}
+function startScanOut(){const s=new Html5Qrcode('readerOut');s.start({facingMode:'environment'},{fps:10,qrbox:250},txt=>{s.stop();scanOutBarcode(txt);},()=>{});}
 
 function render(){
-const search=document.getElementById('search').value.toLowerCase();
-const table=document.getElementById('inventoryTable');
-const alerts=document.getElementById('alerts');
-const historyTable=document.getElementById('historyTable');
-
-alerts.innerHTML='';
-table.innerHTML='';
-historyTable.innerHTML='';
-
-document.getElementById('totalItems').innerText=items.length;
-document.getElementById('totalQuantity').innerText=items.reduce((a,b)=>a+b.quantity,0);
-document.getElementById('lowStockCount').innerText=items.filter(i=>i.quantity<=5).length;
-
-items.filter(item=>item.name.toLowerCase().includes(search)||item.barcode.toLowerCase().includes(search))
-.forEach(item=>{
-if(item.quantity<=5){alerts.innerHTML+=`<li>${item.name} (${item.quantity} remaining)</li>`;}
-
-table.innerHTML+=`
-<tr>
-<td>${item.name}</td>
-<td>${item.quantity}</td>
-<td>${item.location}</td>
-<td>${item.barcode}</td>
-<td>${item.quantity<=5?'<span class="low-stock">Low Stock</span>':'In Stock'}</td>
-<td>
-<div class="table-actions">
-<button class="btn-primary" onclick="editItem(${item.id})">Edit</button>
-<button class="btn-success" onclick="checkIn(${item.id})">+1</button>
-<button class="btn-warning" onclick="checkOut(${item.id})">-1</button>
-<button class="btn-danger" onclick="deleteItem(${item.id})">Delete</button>
-</div>
-</td>
-</tr>`;
+let q=(search?.value||'').toLowerCase();
+inventoryTable.innerHTML='';alerts.innerHTML='';historyTable.innerHTML='';
+items.filter(i=>i.name.toLowerCase().includes(q)||i.barcode.toLowerCase().includes(q)).forEach(i=>{
+if(i.quantity<=5) alerts.innerHTML+=`<li>${i.name} (${i.quantity})</li>`;
+inventoryTable.innerHTML+=`<tr><td>${i.name}</td><td>${i.quantity}</td><td>${i.location}</td><td>${i.barcode}</td><td>${i.quantity<=5?'<span class="low">Low Stock</span>':'In Stock'}</td><td><button onclick='editItem(${i.id})'>Edit</button><button onclick='deleteItem(${i.id})'>Delete</button></td></tr>`;
 });
-
-if(alerts.innerHTML===''){alerts.innerHTML='<li>No low stock items.</li>';}
-
-history.forEach(record=>{
-historyTable.innerHTML+=`<tr><td>${record.action}</td><td>${record.item}</td><td>${record.quantity}</td><td>${record.date}</td></tr>`;
-});
+history.forEach(h=>historyTable.innerHTML+=`<tr><td>${h.action}</td><td>${h.item}</td><td>${h.qty}</td><td>${h.date}</td></tr>`);
+if(alerts.innerHTML==='') alerts.innerHTML='<li>No low stock items</li>';
 }
 
 render();
