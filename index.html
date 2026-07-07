@@ -6,7 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Inventory Tracking System</title>
+
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
 <style>
 body{font-family:Segoe UI,Arial,sans-serif;background:#121212;color:#fff;padding:20px;margin:0}
 .container{max-width:1400px;margin:auto}
@@ -27,8 +29,12 @@ table{width:100%;border-collapse:collapse}
 th,td{padding:10px;border:1px solid #444}
 th{background:#0078d7}
 .low-stock{color:#ff6b6b;font-weight:bold}
+hr{border:1px solid #333;margin:20px 0}
+.scanner-note{color:#ccc;margin-top:5px;margin-bottom:15px}
+.scan-status{margin-top:15px;font-weight:bold;color:#4caf50}
 </style>
 </head>
+
 <body>
 <div class="container">
 
@@ -69,7 +75,14 @@ th{background:#0078d7}
 <div class="card">
 <table>
 <thead>
-<tr><th>Item</th><th>Qty</th><th>Location</th><th>Barcode</th><th>Status</th><th>Actions</th></tr>
+<tr>
+<th>Item</th>
+<th>Qty</th>
+<th>Location</th>
+<th>Barcode</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
 </thead>
 <tbody id="inventoryTable"></tbody>
 </table>
@@ -78,7 +91,14 @@ th{background:#0078d7}
 <div class="card">
 <h3>History</h3>
 <table>
-<thead><tr><th>Action</th><th>Item</th><th>Qty</th><th>Date</th></tr></thead>
+<thead>
+<tr>
+<th>Action</th>
+<th>Item</th>
+<th>Qty</th>
+<th>Date</th>
+</tr>
+</thead>
 <tbody id="historyTable"></tbody>
 </table>
 </div>
@@ -88,136 +108,362 @@ th{background:#0078d7}
 <div id="scanInPage" class="hidden">
 <div class="card">
 <h2>📥 Scan In</h2>
+
+<p class="scanner-note">
+Use a USB/Bluetooth barcode scanner, manually type a barcode, or use the camera scanner below.
+</p>
+
+<input 
+  id="scanInInput" 
+  placeholder="Scan barcode to check item in..."
+  onkeydown="handleScannerEnter(event, 'in')"
+>
+
+<br><br>
+
+<button class="btn-success" onclick="manualScanIn()">Submit Scan In</button>
+
+<div id="scanInStatus" class="scan-status"></div>
+
+<hr>
+
+<h3>Camera Scanner</h3>
 <div id="readerIn"></div>
-<button class="btn-success" onclick="startScanIn()">Start Scanner</button>
+<br>
+<button class="btn-success" onclick="startScanIn()">Start Camera Scanner</button>
 </div>
 </div>
 
 <div id="scanOutPage" class="hidden">
 <div class="card">
 <h2>📤 Scan Out</h2>
+
+<p class="scanner-note">
+Use a USB/Bluetooth barcode scanner, manually type a barcode, or use the camera scanner below.
+</p>
+
+<input 
+  id="scanOutInput" 
+  placeholder="Scan barcode to check item out..."
+  onkeydown="handleScannerEnter(event, 'out')"
+>
+
+<br><br>
+
+<button class="btn-warning" onclick="manualScanOut()">Submit Scan Out</button>
+
+<div id="scanOutStatus" class="scan-status"></div>
+
+<hr>
+
+<h3>Camera Scanner</h3>
 <div id="readerOut"></div>
-<button class="btn-warning" onclick="startScanOut()">Start Scanner</button>
+<br>
+<button class="btn-warning" onclick="startScanOut()">Start Camera Scanner</button>
 </div>
 </div>
 
 </div>
 
 <script>
-let items=JSON.parse(localStorage.getItem('items'))||[];
-let history=JSON.parse(localStorage.getItem('history'))||[];
-let editId=null;
+let items = JSON.parse(localStorage.getItem('items')) || [];
+let history = JSON.parse(localStorage.getItem('history')) || [];
+let editId = null;
 
 function saveStorage(){
-localStorage.setItem('items',JSON.stringify(items));
-localStorage.setItem('history',JSON.stringify(history));
+  localStorage.setItem('items', JSON.stringify(items));
+  localStorage.setItem('history', JSON.stringify(history));
 }
 
 function showPage(page){
-document.getElementById('inventoryPage').classList.add('hidden');
-document.getElementById('scanInPage').classList.add('hidden');
-document.getElementById('scanOutPage').classList.add('hidden');
-document.getElementById(page).classList.remove('hidden');
+  document.getElementById('inventoryPage').classList.add('hidden');
+  document.getElementById('scanInPage').classList.add('hidden');
+  document.getElementById('scanOutPage').classList.add('hidden');
+  document.getElementById(page).classList.remove('hidden');
+
+  setTimeout(() => {
+    if(page === 'scanInPage'){
+      document.getElementById('scanInInput').focus();
+    }
+
+    if(page === 'scanOutPage'){
+      document.getElementById('scanOutInput').focus();
+    }
+  }, 100);
 }
 
 function saveItem(){
-const name=document.getElementById('name').value.trim();
-const quantity=Number(document.getElementById('qty').value);
-const location=document.getElementById('location').value.trim();
-const barcode=document.getElementById('barcode').value.trim();
+  const name = document.getElementById('name').value.trim();
+  const quantity = Number(document.getElementById('qty').value);
+  const location = document.getElementById('location').value.trim();
+  const barcode = document.getElementById('barcode').value.trim();
 
-if(!name)return alert('Enter item name');
-if(!Number.isFinite(quantity)||quantity<0)return alert('Enter quantity');
+  if(!name) return alert('Enter item name');
+  if(!Number.isFinite(quantity) || quantity < 0) return alert('Enter quantity');
 
-const item={id:editId||Date.now(),name,quantity,location,barcode};
+  const item = {
+    id: editId || Date.now(),
+    name,
+    quantity,
+    location,
+    barcode
+  };
 
-if(editId){items=items.map(i=>i.id===editId?item:i);}else{items.push(item);}
+  if(editId){
+    items = items.map(i => i.id === editId ? item : i);
+  }else{
+    items.push(item);
+  }
 
-editId=null;
-document.getElementById('name').value='';
-document.getElementById('qty').value='';
-document.getElementById('location').value='';
-document.getElementById('barcode').value='';
-document.getElementById('saveBtn').innerText='Add Item';
+  editId = null;
 
-saveStorage();
-render();
+  document.getElementById('name').value = '';
+  document.getElementById('qty').value = '';
+  document.getElementById('location').value = '';
+  document.getElementById('barcode').value = '';
+  document.getElementById('saveBtn').innerText = 'Add Item';
+
+  saveStorage();
+  render();
 }
 
 function editItem(id){
-const item=items.find(i=>i.id===id);
-document.getElementById('name').value=item.name;
-document.getElementById('qty').value=item.quantity;
-document.getElementById('location').value=item.location;
-document.getElementById('barcode').value=item.barcode;
-editId=id;
-document.getElementById('saveBtn').innerText='Update Item';
+  const item = items.find(i => i.id === id);
+
+  document.getElementById('name').value = item.name;
+  document.getElementById('qty').value = item.quantity;
+  document.getElementById('location').value = item.location;
+  document.getElementById('barcode').value = item.barcode;
+
+  editId = id;
+  document.getElementById('saveBtn').innerText = 'Update Item';
 }
 
-function deleteItem(id){items=items.filter(i=>i.id!==id);saveStorage();render();}
-
-function addHistory(action,item){
-history.unshift({action,item:item.name,quantity:item.quantity,date:new Date().toLocaleString()});
-saveStorage();
+function deleteItem(id){
+  items = items.filter(i => i.id !== id);
+  saveStorage();
+  render();
 }
 
-function checkIn(id){const item=items.find(i=>i.id===id);item.quantity++;addHistory('Manual +1',item);saveStorage();render();}
-function checkOut(id){const item=items.find(i=>i.id===id);if(item.quantity>0){item.quantity--;addHistory('Manual -1',item);}saveStorage();render();}
+function addHistory(action, item){
+  history.unshift({
+    action,
+    item: item.name,
+    quantity: item.quantity,
+    date: new Date().toLocaleString()
+  });
+
+  saveStorage();
+}
+
+function checkIn(id){
+  const item = items.find(i => i.id === id);
+
+  item.quantity++;
+
+  addHistory('Manual +1', item);
+  saveStorage();
+  render();
+}
+
+function checkOut(id){
+  const item = items.find(i => i.id === id);
+
+  if(item.quantity > 0){
+    item.quantity--;
+    addHistory('Manual -1', item);
+  }
+
+  saveStorage();
+  render();
+}
 
 function scanInLookup(code){
-const item=items.find(i=>i.barcode===code);
-if(!item)return alert('Item not found');
-item.quantity++;
-addHistory('Scan-In',item);
-saveStorage();render();
-alert(item.name+' checked in');
+  const item = items.find(i => i.barcode === code);
+
+  if(!item){
+    const status = document.getElementById('scanInStatus');
+    status.style.color = '#ff6b6b';
+    status.innerText = 'Item not found: ' + code;
+    return;
+  }
+
+  item.quantity++;
+
+  addHistory('Scan-In', item);
+  saveStorage();
+  render();
+
+  const status = document.getElementById('scanInStatus');
+  status.style.color = '#4caf50';
+  status.innerText = item.name + ' checked in. New quantity: ' + item.quantity;
 }
 
 function scanOutLookup(code){
-const item=items.find(i=>i.barcode===code);
-if(!item)return alert('Item not found');
-if(item.quantity<=0)return alert('No stock remaining');
-item.quantity--;
-addHistory('Scan-Out',item);
-saveStorage();render();
-alert(item.name+' checked out');
+  const item = items.find(i => i.barcode === code);
+
+  if(!item){
+    const status = document.getElementById('scanOutStatus');
+    status.style.color = '#ff6b6b';
+    status.innerText = 'Item not found: ' + code;
+    return;
+  }
+
+  if(item.quantity <= 0){
+    const status = document.getElementById('scanOutStatus');
+    status.style.color = '#ff6b6b';
+    status.innerText = 'No stock remaining for ' + item.name;
+    return;
+  }
+
+  item.quantity--;
+
+  addHistory('Scan-Out', item);
+  saveStorage();
+  render();
+
+  const status = document.getElementById('scanOutStatus');
+  status.style.color = '#4caf50';
+  status.innerText = item.name + ' checked out. New quantity: ' + item.quantity;
+}
+
+function handleScannerEnter(event, type){
+  if(event.key === 'Enter'){
+    event.preventDefault();
+
+    if(type === 'in'){
+      manualScanIn();
+    }else if(type === 'out'){
+      manualScanOut();
+    }
+  }
+}
+
+function manualScanIn(){
+  const input = document.getElementById('scanInInput');
+  const code = input.value.trim();
+
+  if(!code){
+    const status = document.getElementById('scanInStatus');
+    status.style.color = '#ff6b6b';
+    status.innerText = 'Scan or enter a barcode';
+    input.focus();
+    return;
+  }
+
+  scanInLookup(code);
+
+  input.value = '';
+  input.focus();
+}
+
+function manualScanOut(){
+  const input = document.getElementById('scanOutInput');
+  const code = input.value.trim();
+
+  if(!code){
+    const status = document.getElementById('scanOutStatus');
+    status.style.color = '#ff6b6b';
+    status.innerText = 'Scan or enter a barcode';
+    input.focus();
+    return;
+  }
+
+  scanOutLookup(code);
+
+  input.value = '';
+  input.focus();
 }
 
 function startScanIn(){
-const scanner=new Html5Qrcode('readerIn');
-scanner.start({facingMode:'environment'},{fps:10,qrbox:250},txt=>{scanner.stop();scanInLookup(txt);},()=>{});
+  const scanner = new Html5Qrcode('readerIn');
+
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: 250 },
+    txt => {
+      scanner.stop();
+      scanInLookup(txt);
+    },
+    () => {}
+  );
 }
 
 function startScanOut(){
-const scanner=new Html5Qrcode('readerOut');
-scanner.start({facingMode:'environment'},{fps:10,qrbox:250},txt=>{scanner.stop();scanOutLookup(txt);},()=>{});
+  const scanner = new Html5Qrcode('readerOut');
+
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: 250 },
+    txt => {
+      scanner.stop();
+      scanOutLookup(txt);
+    },
+    () => {}
+  );
 }
 
 function render(){
-const search=(document.getElementById('search').value||'').toLowerCase();
-const table=document.getElementById('inventoryTable');
-const alerts=document.getElementById('alerts');
-const historyTable=document.getElementById('historyTable');
+  const search = (document.getElementById('search').value || '').toLowerCase();
+  const table = document.getElementById('inventoryTable');
+  const alerts = document.getElementById('alerts');
+  const historyTable = document.getElementById('historyTable');
 
-table.innerHTML='';alerts.innerHTML='';historyTable.innerHTML='';
+  table.innerHTML = '';
+  alerts.innerHTML = '';
+  historyTable.innerHTML = '';
 
-document.getElementById('totalItems').innerText=items.length;
-document.getElementById('totalQuantity').innerText=items.reduce((a,b)=>a+b.quantity,0);
-document.getElementById('lowStockCount').innerText=items.filter(i=>i.quantity<=5).length;
+  document.getElementById('totalItems').innerText = items.length;
+  document.getElementById('totalQuantity').innerText = items.reduce((a, b) => a + b.quantity, 0);
+  document.getElementById('lowStockCount').innerText = items.filter(i => i.quantity <= 5).length;
 
-items.filter(i=>i.name.toLowerCase().includes(search)||i.barcode.toLowerCase().includes(search)).forEach(item=>{
-if(item.quantity<=5){alerts.innerHTML+=`<li>${item.name} (${item.quantity})</li>`;}
+  items
+    .filter(i =>
+      i.name.toLowerCase().includes(search) ||
+      i.barcode.toLowerCase().includes(search)
+    )
+    .forEach(item => {
+      if(item.quantity <= 5){
+        alerts.innerHTML += `<li>${item.name} (${item.quantity})</li>`;
+      }
 
-table.innerHTML+=`<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.location}</td><td>${item.barcode}</td><td>${item.quantity<=5?'<span class="low-stock">Low Stock</span>':'In Stock'}</td><td><div class="table-actions"><button class="btn-primary" onclick="editItem(${item.id})">Edit</button><button class="btn-success" onclick="checkIn(${item.id})">+1</button><button class="btn-warning" onclick="checkOut(${item.id})">-1</button><button class="btn-danger" onclick="deleteItem(${item.id})">Delete</button></div></td></tr>`;
-});
+      table.innerHTML += `
+        <tr>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${item.location}</td>
+          <td>${item.barcode}</td>
+          <td>${item.quantity <= 5 ? '<span class="low-stock">Low Stock</span>' : 'In Stock'}</td>
+          <td>
+            <div class="table-actions">
+              <button class="btn-primary" onclick="editItem(${item.id})">Edit</button>
+              <button class="btn-success" onclick="checkIn(${item.id})">+1</button>
+              <button class="btn-warning" onclick="checkOut(${item.id})">-1</button>
+              <button class="btn-danger" onclick="deleteItem(${item.id})">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
 
-if(alerts.innerHTML==='')alerts.innerHTML='<li>No low stock items</li>';
+  if(alerts.innerHTML === ''){
+    alerts.innerHTML = '<li>No low stock items</li>';
+  }
 
-history.forEach(r=>{
-historyTable.innerHTML+=`<tr><td>${r.action}</td><td>${r.item}</td><td>${r.quantity}</td><td>${r.date}</td></tr>`;
-});
+  history.forEach(r => {
+    historyTable.innerHTML += `
+      <tr>
+        <td>${r.action}</td>
+        <td>${r.item}</td>
+        <td>${r.quantity}</td>
+        <td>${r.date}</td>
+      </tr>
+    `;
+  });
 }
 
 render();
 </script>
+
 </body>
+</html>
